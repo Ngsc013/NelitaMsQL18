@@ -1,0 +1,139 @@
+-- ======================================
+-- CRIAÇÃO DO BANCO DE DADOS
+-- ======================================
+CREATE DATABASE IF NOT EXISTS Biblioteca;
+USE Biblioteca;
+
+-- ======================================
+-- TABELA LEITOR
+-- ======================================
+CREATE TABLE Leitor (
+    id_leitor INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100),
+    telefone VARCHAR(15)
+);
+
+-- ======================================
+-- TABELA LIVRO
+-- ======================================
+CREATE TABLE Livro (
+    id_livro INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(150) NOT NULL,
+    autor VARCHAR(100) NOT NULL,
+    descricao TEXT,
+    preco DECIMAL(10,2), -- caso queira controlar valor de reposição
+    estoque INT NOT NULL,
+    categoria ENUM('Romance', 'Ficção', 'Didático', 'Biografia', 'Tecnologia', 'Outros') NOT NULL
+);
+
+-- ======================================
+-- TABELA EMPRESTIMO
+-- ======================================
+CREATE TABLE Emprestimo (
+    id_emprestimo INT AUTO_INCREMENT PRIMARY KEY,
+    id_leitor INT NOT NULL,
+    data_emprestimo DATE NOT NULL,
+    data_devolucao DATE,
+    status ENUM('Em andamento', 'Concluído', 'Atrasado') DEFAULT 'Em andamento',
+    FOREIGN KEY (id_leitor) REFERENCES Leitor(id_leitor)
+);
+
+-- ======================================
+-- TABELA ITEM_EMPRESTIMO
+-- ======================================
+CREATE TABLE ItemEmprestimo (
+    id_item INT AUTO_INCREMENT PRIMARY KEY,
+    id_emprestimo INT NOT NULL,
+    id_livro INT NOT NULL,
+    quantidade INT NOT NULL,
+    FOREIGN KEY (id_emprestimo) REFERENCES Emprestimo(id_emprestimo),
+    FOREIGN KEY (id_livro) REFERENCES Livro(id_livro)
+);
+
+-- ======================================
+-- INSERÇÃO DE DADOS
+-- ======================================
+
+-- LEITORES
+INSERT INTO Leitor (nome, email, telefone) VALUES
+('Ana Paula', 'ana@gmail.com', '11999995555'),
+('Carlos Mendes', 'carlos@gmail.com', '11988884444'),
+('Fernanda Souza', 'fernanda@gmail.com', '11977773333');
+
+-- LIVROS
+INSERT INTO Livro (titulo, autor, descricao, preco, estoque, categoria) VALUES
+('O Senhor dos Anéis', 'J.R.R. Tolkien', 'Fantasia épica em três volumes', 120.00, 10, 'Ficção'),
+('Introdução à Programação', 'João da Silva', 'Livro didático de programação em Java', 80.00, 5, 'Didático'),
+('Dom Casmurro', 'Machado de Assis', 'Clássico da literatura brasileira', 35.00, 15, 'Romance'),
+('Steve Jobs', 'Walter Isaacson', 'Biografia do fundador da Apple', 50.00, 8, 'Biografia'),
+('Inteligência Artificial', 'Andrew Ng', 'Fundamentos de IA e Machine Learning', 150.00, 3, 'Tecnologia');
+
+-- EMPRESTIMOS
+INSERT INTO Emprestimo (id_leitor, data_emprestimo, data_devolucao, status) VALUES
+(1, '2025-08-01', '2025-08-15', 'Concluído'),
+(2, '2025-08-03', NULL, 'Em andamento'),
+(3, '2025-08-04', '2025-08-10', 'Atrasado');
+
+-- ITENS DO EMPRESTIMO
+INSERT INTO ItemEmprestimo (id_emprestimo, id_livro, quantidade) VALUES
+(1, 1, 1),
+(1, 3, 1),
+(2, 2, 1),
+(3, 5, 1);
+
+-- ======================================
+-- CONSULTAS DO SISTEMA
+-- ======================================
+
+-- 1. Listar todos os leitores ordenados por nome
+SELECT * FROM Leitor ORDER BY nome ASC;
+
+-- 2. Buscar livros que contenham 'Programação'
+SELECT * FROM Livro WHERE titulo LIKE '%Programação%';
+
+-- 3. Empréstimos concluídos com nome do leitor e total de livros
+SELECT e.id_emprestimo, l.nome AS leitor, 
+       SUM(ie.quantidade) AS total_livros
+FROM Emprestimo e
+JOIN Leitor l ON e.id_leitor = l.id_leitor
+JOIN ItemEmprestimo ie ON e.id_emprestimo = ie.id_emprestimo
+WHERE e.status = 'Concluído'
+GROUP BY e.id_emprestimo, l.nome;
+
+-- 4. Top 3 livros mais caros
+SELECT titulo, preco FROM Livro ORDER BY preco DESC LIMIT 3;
+
+-- 5. Quantidade de empréstimos por leitor
+SELECT l.nome, COUNT(e.id_emprestimo) AS total_emprestimos
+FROM Leitor l
+LEFT JOIN Emprestimo e ON l.id_leitor = e.id_leitor
+GROUP BY l.nome;
+
+-- 6. Livros com estoque abaixo de 5
+SELECT titulo, estoque FROM Livro WHERE estoque < 5;
+
+-- 7. Empréstimos em andamento
+SELECT e.id_emprestimo, l.nome, e.data_emprestimo
+FROM Emprestimo e
+JOIN Leitor l ON e.id_leitor = l.id_leitor
+WHERE e.status = 'Em andamento';
+
+-- 8. Média de preço por categoria
+SELECT categoria, AVG(preco) AS media_preco
+FROM Livro
+GROUP BY categoria;
+
+-- 9. Empréstimos atrasados com quantidade total de livros
+SELECT e.id_emprestimo, l.nome, SUM(ie.quantidade) AS total_livros
+FROM Emprestimo e
+JOIN Leitor l ON e.id_leitor = l.id_leitor
+JOIN ItemEmprestimo ie ON e.id_emprestimo = ie.id_emprestimo
+WHERE e.status = 'Atrasado'
+GROUP BY e.id_emprestimo, l.nome;
+
+-- 10. Leitores sem empréstimos
+SELECT l.nome
+FROM Leitor l
+LEFT JOIN Emprestimo e ON l.id_leitor = e.id_leitor
+WHERE e.id_emprestimo IS NULL;
